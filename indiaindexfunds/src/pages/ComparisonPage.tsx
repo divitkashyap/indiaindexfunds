@@ -40,6 +40,11 @@ const ComparisonPage: React.FC = () => {
           bench => bench.index_name === selectedFunds.fundB!.benchmark_index
         );
 
+        console.log('Fund A benchmark:', selectedFunds.fundA!.benchmark_index);
+        console.log('Fund B benchmark:', selectedFunds.fundB!.benchmark_index);
+        console.log('Benchmark data A:', benchmarkDataA.length);
+        console.log('Benchmark data B:', benchmarkDataB.length);
+
         // Filter data based on timeframe
         let startDate: Date;
         const now = new Date();
@@ -63,13 +68,20 @@ const ComparisonPage: React.FC = () => {
           
           const pointDate = new Date(navA.date);
           if (navB && pointDate >= startDate && pointDate <= endDate) {
-            chartPoints.push({
+            const point: ChartDataPoint = {
               date: navA.date,
               navA: navA.nav,
               navB: navB.nav,
               benchmarkA: benchA?.value,
               benchmarkB: benchB?.value,
-            });
+            };
+            
+            // Debug log for first few points
+            if (chartPoints.length < 3) {
+              console.log('Chart point:', point);
+            }
+            
+            chartPoints.push(point);
           }
         });
 

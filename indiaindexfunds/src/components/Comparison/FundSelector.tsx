@@ -104,10 +104,10 @@ const FundSelector: React.FC<FundSelectorProps> = ({ funds, categories, onFundSe
     <div className="bg-glass backdrop-blur-xs rounded-2xl shadow-lg p-6 mb-6 relative z-10">
       <h2 className="text-xl font-semibold mb-4 text-white">Select Funds to Compare</h2>
       
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="flex flex-col lg:flex-row gap-6 items-start">
         {/* Fund A Selector */}
-        <div className="space-y-4 relative z-30" ref={dropdownRefA}>
-          <div className="flex items-center justify-between">
+        <div className="flex-1 space-y-4 relative" style={{ zIndex: 1002 }} ref={dropdownRefA}>
+          <div className="flex items-center justify-between mt-0">
             <label className="block text-sm font-medium text-gray-300">
               Fund A
             </label>
@@ -126,8 +126,7 @@ const FundSelector: React.FC<FundSelectorProps> = ({ funds, categories, onFundSe
             <select
               value={selectedCategoryA}
               onChange={(e) => setSelectedCategoryA(e.target.value)}
-              className="w-full px-3 py-2 bg-gray-800/50 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent appearance-none relative z-50"
-              style={{ zIndex: 9999 }}
+              className="w-full px-3 py-2 bg-gray-800/50 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent"
             >
               <option value="">All Categories</option>
               {primaryCategories.map(category => (
@@ -198,8 +197,8 @@ const FundSelector: React.FC<FundSelectorProps> = ({ funds, categories, onFundSe
         </div>
 
         {/* Fund B Selector */}
-        <div className="space-y-4 relative" ref={dropdownRefB} style={{ zIndex: 1001 }}>
-          <div className="flex items-center justify-between">
+        <div className="flex-1 space-y-4 relative" style={{ zIndex: 1001 }} ref={dropdownRefB}>
+          <div className="flex items-center justify-between mt-0">
             <label className="block text-sm font-medium text-gray-300">
               Fund B
             </label>

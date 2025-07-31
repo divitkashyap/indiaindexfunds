@@ -157,14 +157,17 @@ const ComparisonChart: React.FC<ComparisonChartProps> = ({
           </div>
           
           <button
-            onClick={() => setShowBenchmarks(!showBenchmarks)}
+            onClick={() => {
+              console.log('Benchmark button clicked, current state:', showBenchmarks);
+              setShowBenchmarks(!showBenchmarks);
+            }}
             className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
               showBenchmarks
-                ? 'bg-gray-700 text-white'
-                : 'bg-gray-800 text-gray-400 hover:text-white'
+                ? 'bg-gray-700 text-white border border-green-500'
+                : 'bg-gray-800 text-gray-400 hover:text-white border border-gray-600'
             }`}
           >
-            Benchmark
+            {showBenchmarks ? '✓ Benchmark' : 'Benchmark'}
           </button>
         </div>
       </div>
@@ -222,24 +225,26 @@ const ComparisonChart: React.FC<ComparisonChartProps> = ({
             {/* Benchmark Lines */}
             {showBenchmarks && (
               <>
+                {console.log('Rendering benchmark lines, showBenchmarks:', showBenchmarks)}
+                {console.log('Sample benchmark data:', data.slice(0, 2).map(d => ({ benchmarkA: d.benchmarkA, benchmarkB: d.benchmarkB })))}
                 <Line
                   type="monotone"
                   dataKey={viewMode === 'normalized' ? 'normalizedBenchmarkA' : 'benchmarkA'}
                   stroke="#10B981"
-                  strokeWidth={1}
-                  strokeDasharray="5 5"
+                  strokeWidth={3}
+                  strokeDasharray="8 4"
                   dot={false}
-                  name="Benchmark A"
+                  name={`${fundA.benchmark_index} (Benchmark A)`}
                   connectNulls={false}
                 />
                 <Line
                   type="monotone"
                   dataKey={viewMode === 'normalized' ? 'normalizedBenchmarkB' : 'benchmarkB'}
                   stroke="#F59E0B"
-                  strokeWidth={1}
-                  strokeDasharray="5 5"
+                  strokeWidth={3}
+                  strokeDasharray="8 4"
                   dot={false}
-                  name="Benchmark B"
+                  name={`${fundB.benchmark_index} (Benchmark B)`}
                   connectNulls={false}
                 />
               </>
@@ -269,7 +274,29 @@ const ComparisonChart: React.FC<ComparisonChartProps> = ({
         <div className="bg-gray-800/50 rounded-lg p-3">
           <div className="text-gray-400 text-xs mb-1">Period</div>
           <div className="text-white font-medium text-sm">
-            {data.length > 0 ? `${Math.round(data.length / 30)} months` : 'N/A'}
+            {(() => {
+              if (data.length === 0) return 'N/A';
+              
+              // Calculate actual time span from data
+              const firstDate = new Date(data[0].date);
+              const lastDate = new Date(data[data.length - 1].date);
+              const diffTime = Math.abs(lastDate.getTime() - firstDate.getTime());
+              const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+              
+              // Convert to more readable format
+              if (diffDays >= 1460) { // ~4 years
+                return `${Math.round(diffDays / 365)} years`;
+              } else if (diffDays >= 365) { // ~1 year
+                const years = Math.floor(diffDays / 365);
+                const months = Math.round((diffDays % 365) / 30.44);
+                if (months === 0) return `${years} year${years > 1 ? 's' : ''}`;
+                return `${years}y ${months}m`;
+              } else if (diffDays >= 60) { // ~2 months
+                return `${Math.round(diffDays / 30.44)} months`;
+              } else {
+                return `${diffDays} days`;
+              }
+            })()}
           </div>
         </div>
       </div>
