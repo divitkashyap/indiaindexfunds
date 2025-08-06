@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Search, Menu, X } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import logo from '@/assets/logo.svg';
@@ -12,11 +13,13 @@ interface NavbarProps {
 
 const Navbar = ({ searchQuery, onSearchChange }: NavbarProps) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const location = useLocation();
 
   const navItems = [
-    { name: 'HOME', href: '#', active: false },
-    { name: 'SCREENER', href: '#', active: true },
+    { name: 'HOME', href: '/', active: location.pathname === '/' },
+    { name: 'SCREENER', href: '/screener', active: location.pathname === '/screener' },
     { name: 'COMPARE', href: '#', active: false },
+    { name: 'BLOG', href: '/blog', active: location.pathname === '/blog' },
   ];
 
   return (
@@ -43,18 +46,18 @@ const Navbar = ({ searchQuery, onSearchChange }: NavbarProps) => {
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-8">
             {navItems.map((item) => (
-              <motion.a
-                key={item.name}
-                href={item.href}
-                whileHover={{ y: -2 }}
-                className={`text-sm font-medium transition-colors duration-200 ${
-                  item.active
-                    ? 'text-primary border-b-2 border-primary pb-2'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                {item.name}
-              </motion.a>
+              <motion.div key={item.name} whileHover={{ y: -2 }}>
+                <Link
+                  to={item.href}
+                  className={`text-sm font-medium transition-colors duration-200 ${
+                    item.active
+                      ? 'text-primary border-b-2 border-primary pb-2'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {item.name}
+                </Link>
+              </motion.div>
             ))}
           </div>
 
@@ -98,17 +101,18 @@ const Navbar = ({ searchQuery, onSearchChange }: NavbarProps) => {
           >
             <div className="flex flex-col space-y-4">
               {navItems.map((item) => (
-                <a
+                <Link
                   key={item.name}
-                  href={item.href}
+                  to={item.href}
                   className={`text-sm font-medium transition-colors ${
                     item.active
                       ? 'text-primary'
                       : 'text-muted-foreground hover:text-foreground'
                   }`}
+                  onClick={() => setIsMobileMenuOpen(false)}
                 >
                   {item.name}
-                </a>
+                </Link>
               ))}
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />

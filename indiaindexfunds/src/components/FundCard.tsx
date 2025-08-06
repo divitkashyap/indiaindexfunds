@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
@@ -18,6 +19,7 @@ interface FundCardProps {
 }
 
 const FundCard = ({ fund, index }: FundCardProps) => {
+  const navigate = useNavigate();
   const isPositive = fund.returnPercentage > 0;
   const isNegative = fund.returnPercentage < 0;
 
@@ -102,6 +104,7 @@ const FundCard = ({ fund, index }: FundCardProps) => {
               variant="outline"
               size="sm"
               className="flex-1 border-border hover:border-primary hover:text-primary transition-all duration-200"
+              onClick={() => navigate(`/fund/${fund.id}`)}
             >
               Know More
             </Button>
