@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
 
@@ -22,6 +23,8 @@ interface FundListProps {
 }
 
 const FundList = ({ funds }: FundListProps) => {
+  const navigate = useNavigate();
+  
   const getReturnColor = (returnPercentage: number) => {
     if (returnPercentage > 0) return 'text-green-600';
     if (returnPercentage < 0) return 'text-red-600';
@@ -135,6 +138,7 @@ const FundList = ({ funds }: FundListProps) => {
                   variant="outline"
                   size="sm"
                   className="border-border hover:border-primary hover:text-primary transition-all duration-200"
+                  onClick={() => navigate(`/fund/${fund.id}`)}
                 >
                   Details
                 </Button>
