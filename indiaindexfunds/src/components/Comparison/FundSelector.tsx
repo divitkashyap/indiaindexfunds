@@ -292,7 +292,7 @@ const FundSelector: React.FC<FundSelectorProps> = ({ funds, categories, onFundSe
             <div className="flex-1">
               {selectedFunds.fundA ? (
                 <div>
-                  <div className="text-accent font-medium text-sm">{selectedFunds.fundA.scheme_name}</div>
+                  <div className="text-yellow-400 font-medium text-sm">{selectedFunds.fundA.scheme_name}</div>
                   <div className="text-gray-400 text-xs mt-1">{selectedFunds.fundA.fund_house}</div>
                   <div className="flex items-center gap-2 mt-2">
                     <CategoryBadge categoryId={selectedFunds.fundA.category_id} />

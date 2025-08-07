@@ -136,7 +136,7 @@ const ComparisonPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen w-full p-4">
+    <div className="w-full p-4 pt-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
@@ -232,7 +232,7 @@ const ComparisonPage: React.FC = () => {
                   className="p-4 bg-gray-800/30 rounded-lg hover:bg-gray-700/30 transition-colors text-left"
                 >
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-accent text-sm font-medium">{fundA.fund_house}</span>
+                    <span className="text-yellow-500 text-sm font-medium">{fundA.fund_house}</span>
                     <span className="text-gray-400 text-xs">vs</span>
                     <span className="text-yellow-500 text-sm font-medium">{fundB.fund_house}</span>
                   </div>
