@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import FundSelector from '../components/Comparison/FundSelector';
-import TimeframeToggle from '../components/Comparison/TimeframeToggle';
 import ComparisonChart from '../components/Comparison/ComparisonChart';
 import MetricsTable from '../components/Comparison/MetricsTable';
 import InvestButton from '../components/Comparison/InvestButton';
-import type { TimeframeOption } from '../components/Comparison/TimeframeToggle';
+import type { TimeframeOption } from '../components/Comparison/ComparisonChart';
 import type { ChartDataPoint } from '../components/Comparison/ComparisonChart';
 import { mockData, type Fund as MockFund, type MetricsDaily } from '../data/mockData';
 
@@ -140,7 +139,7 @@ const ComparisonPage: React.FC = () => {
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-white mb-2">Fund Comparison</h1>
+          <h1 className="text-4xl font-bold text-white mb-2">Fund Comparison </h1>
           <p className="text-gray-300 text-lg">
             Compare performance and metrics of Indian index funds
           </p>
@@ -154,15 +153,6 @@ const ComparisonPage: React.FC = () => {
           selectedFunds={selectedFunds}
         />
 
-        {/* Timeframe Toggle */}
-        <TimeframeToggle
-          selectedTimeframe={selectedTimeframe}
-          onTimeframeChange={handleTimeframeChange}
-          customStartDate={customStartDate}
-          customEndDate={customEndDate}
-          onCustomDateChange={handleCustomDateChange}
-        />
-
         {/* Charts and Tables */}
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
           {/* Chart - Takes 2 columns on XL screens */}
@@ -173,6 +163,11 @@ const ComparisonPage: React.FC = () => {
               fundB={selectedFunds.fundB}
               benchmarkData={mockData.benchmarkData}
               loading={isLoading}
+              selectedTimeframe={selectedTimeframe}
+              onTimeframeChange={handleTimeframeChange}
+              customStartDate={customStartDate}
+              customEndDate={customEndDate}
+              onCustomDateChange={handleCustomDateChange}
             />
           </div>
 

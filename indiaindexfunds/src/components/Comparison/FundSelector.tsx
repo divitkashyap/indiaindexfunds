@@ -17,6 +17,12 @@ const FundSelector: React.FC<FundSelectorProps> = ({ funds, categories, onFundSe
   const [selectedCategoryA, setSelectedCategoryA] = useState<string>('');
   const [selectedCategoryB, setSelectedCategoryB] = useState<string>('');
   
+  // Additional filter states
+  const [fundTypeFilterA, setFundTypeFilterA] = useState<string>('All');
+  const [fundTypeFilterB, setFundTypeFilterB] = useState<string>('All');
+  const [assetTypeFilterA, setAssetTypeFilterA] = useState<string>('All');
+  const [assetTypeFilterB, setAssetTypeFilterB] = useState<string>('All');
+  
   const dropdownRefA = useRef<HTMLDivElement>(null);
   const dropdownRefB = useRef<HTMLDivElement>(null);
 
@@ -35,19 +41,39 @@ const FundSelector: React.FC<FundSelectorProps> = ({ funds, categories, onFundSe
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Filter funds based on search and category
-  const filterFunds = (search: string, categoryFilter: string, excludeFundId?: string) => {
+  // Enhanced filter function with additional filters
+  const filterFunds = (
+    search: string, 
+    categoryFilter: string, 
+    fundTypeFilter: string, 
+    assetTypeFilter: string, 
+    excludeFundId?: string
+  ) => {
     return funds.filter(fund => {
       const matchesSearch = fund.scheme_name.toLowerCase().includes(search.toLowerCase()) ||
                            fund.fund_house.toLowerCase().includes(search.toLowerCase());
       const matchesCategory = !categoryFilter || fund.category_id === categoryFilter;
+      
+      // Fund type filter - check if fund name contains ETF or Index Fund keywords
+      const isETF = fund.scheme_name.toLowerCase().includes('etf');
+      const matchesFundType = fundTypeFilter === 'All' || 
+                             (fundTypeFilter === 'ETF' && isETF) ||
+                             (fundTypeFilter === 'Index Fund' && !isETF);
+      
+      // Asset type filter - basic heuristic based on fund category
+      const isEquity = fund.category_id.includes('equity') || fund.category_id.includes('large-cap') || 
+                      fund.category_id.includes('mid-cap') || fund.category_id.includes('small-cap');
+      const matchesAssetType = assetTypeFilter === 'All' ||
+                              (assetTypeFilter === 'Equity' && isEquity) ||
+                              (assetTypeFilter === 'Debt' && !isEquity);
+      
       const notExcluded = !excludeFundId || fund.id !== excludeFundId;
-      return matchesSearch && matchesCategory && notExcluded;
+      return matchesSearch && matchesCategory && matchesFundType && matchesAssetType && notExcluded;
     });
   };
 
-  const filteredFundsA = filterFunds(searchA, selectedCategoryA, selectedFunds.fundB?.id);
-  const filteredFundsB = filterFunds(searchB, selectedCategoryB, selectedFunds.fundA?.id);
+  const filteredFundsA = filterFunds(searchA, selectedCategoryA, fundTypeFilterA, assetTypeFilterA, selectedFunds.fundB?.id);
+  const filteredFundsB = filterFunds(searchB, selectedCategoryB, fundTypeFilterB, assetTypeFilterB, selectedFunds.fundA?.id);
 
   // Get primary categories (level 1)
   const primaryCategories = categories.filter(cat => cat.level === 1);
@@ -70,12 +96,16 @@ const FundSelector: React.FC<FundSelectorProps> = ({ funds, categories, onFundSe
     onFundSelect(null, selectedFunds.fundB);
     setSearchA('');
     setSelectedCategoryA('');
+    setFundTypeFilterA('All');
+    setAssetTypeFilterA('All');
   };
 
   const clearFundB = () => {
     onFundSelect(selectedFunds.fundA, null);
     setSearchB('');
     setSelectedCategoryB('');
+    setFundTypeFilterB('All');
+    setAssetTypeFilterB('All');
   };
 
   const CategoryBadge: React.FC<{ categoryId: string }> = ({ categoryId }) => {
@@ -140,6 +170,49 @@ const FundSelector: React.FC<FundSelectorProps> = ({ funds, categories, onFundSe
               ))}
             </select>
             <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+          </div>
+
+          {/* Additional Filters */}
+          <div className="space-y-3">
+            {/* Fund Type Filter */}
+            <div>
+              <div className="text-xs text-gray-400 mb-2">Fund Type</div>
+              <div className="flex gap-2">
+                {['All', 'ETF', 'Index Fund'].map((type) => (
+                  <button
+                    key={type}
+                    onClick={() => setFundTypeFilterA(type)}
+                    className={`px-3 py-1 rounded-full text-xs transition-all duration-200 ${
+                      fundTypeFilterA === type
+                        ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
+                        : 'bg-gray-800/50 text-gray-400 border border-gray-600/50 hover:bg-gray-700/50'
+                    }`}
+                  >
+                    {type}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Asset Type Filter */}
+            <div>
+              <div className="text-xs text-gray-400 mb-2">Asset Type</div>
+              <div className="flex gap-2">
+                {['All', 'Equity', 'Debt'].map((type) => (
+                  <button
+                    key={type}
+                    onClick={() => setAssetTypeFilterA(type)}
+                    className={`px-3 py-1 rounded-full text-xs transition-all duration-200 ${
+                      assetTypeFilterA === type
+                        ? 'bg-green-500/20 text-green-300 border border-green-500/30'
+                        : 'bg-gray-800/50 text-gray-400 border border-gray-600/50 hover:bg-gray-700/50'
+                    }`}
+                  >
+                    {type}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
           
           {/* Search Input */}
@@ -229,6 +302,49 @@ const FundSelector: React.FC<FundSelectorProps> = ({ funds, categories, onFundSe
               </optgroup>
             ))}
           </select>
+
+          {/* Additional Filters */}
+          <div className="space-y-3">
+            {/* Fund Type Filter */}
+            <div>
+              <div className="text-xs text-gray-400 mb-2">Fund Type</div>
+              <div className="flex gap-2">
+                {['All', 'ETF', 'Index Fund'].map((type) => (
+                  <button
+                    key={type}
+                    onClick={() => setFundTypeFilterB(type)}
+                    className={`px-3 py-1 rounded-full text-xs transition-all duration-200 ${
+                      fundTypeFilterB === type
+                        ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
+                        : 'bg-gray-800/50 text-gray-400 border border-gray-600/50 hover:bg-gray-700/50'
+                    }`}
+                  >
+                    {type}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Asset Type Filter */}
+            <div>
+              <div className="text-xs text-gray-400 mb-2">Asset Type</div>
+              <div className="flex gap-2">
+                {['All', 'Equity', 'Debt'].map((type) => (
+                  <button
+                    key={type}
+                    onClick={() => setAssetTypeFilterB(type)}
+                    className={`px-3 py-1 rounded-full text-xs transition-all duration-200 ${
+                      assetTypeFilterB === type
+                        ? 'bg-green-500/20 text-green-300 border border-green-500/30'
+                        : 'bg-gray-800/50 text-gray-400 border border-gray-600/50 hover:bg-gray-700/50'
+                    }`}
+                  >
+                    {type}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
           
           {/* Search Input */}
           <div className="relative">
