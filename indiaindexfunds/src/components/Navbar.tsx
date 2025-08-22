@@ -18,7 +18,7 @@ const Navbar = ({ searchQuery, onSearchChange }: NavbarProps) => {
   const navItems = [
     { name: 'HOME', href: '/', active: location.pathname === '/' },
     { name: 'SCREENER', href: '/screener', active: location.pathname === '/screener' },
-    { name: 'COMPARE', href: '#', active: false },
+    { name: 'COMPARE', href: '/compare', active:location.pathname === '/ComparisonPage' },
     { name: 'BLOG', href: '/blog', active: location.pathname === '/blog' },
   ];
 

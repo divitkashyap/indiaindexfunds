@@ -10,6 +10,7 @@ import Screener from "./pages/Screener";
 import FundDetail from "./pages/FundDetail";
 import Blog from "./pages/Blog";
 import NotFound from "./pages/NotFound";
+import ComparisonPage from "./pages/ComparisonPage";
 
 const queryClient = new QueryClient();
 
@@ -22,6 +23,7 @@ const App = () => (
         <ScrollToTop />
         <Routes>
           <Route path="/" element={<Index />} />
+          <Route path="/compare" element={<ComparisonPage />} />
           <Route path="/screener" element={<Screener />} />
           <Route path="/fund/:fundId" element={<FundDetail />} />
           <Route path="/blog" element={<Blog />} />
