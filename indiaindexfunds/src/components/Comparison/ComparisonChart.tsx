@@ -9,8 +9,10 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts';
-import { BarChart3 } from 'lucide-react';
+import { BarChart3, ChevronDown, Calendar } from 'lucide-react';
 import type { Fund, BenchmarkIndex } from '../../data/mockData';
+
+export type TimeframeOption = '1Y' | '3Y' | '5Y' | 'custom';
 
 export interface ChartDataPoint {
   date: string;
@@ -30,29 +32,66 @@ interface ComparisonChartProps {
   fundB: Fund | null;
   benchmarkData?: BenchmarkIndex[];
   loading?: boolean;
+  selectedTimeframe: TimeframeOption;
+  onTimeframeChange: (timeframe: TimeframeOption) => void;
+  customStartDate?: Date;
+  customEndDate?: Date;
+  onCustomDateChange?: (startDate: Date, endDate: Date) => void;
 }
 
 const ComparisonChart: React.FC<ComparisonChartProps> = ({
   data,
   fundA,
   fundB,
-  benchmarkData = [],
-  loading = false
+  loading = false,
+  selectedTimeframe,
+  onTimeframeChange,
+  customStartDate,
+  customEndDate,
+  onCustomDateChange,
 }) => {
-  const [viewMode, setViewMode] = useState<'absolute' | 'normalized'>('normalized');
   const [showBenchmarks, setShowBenchmarks] = useState(true);
+  const [showTimeframeDropdown, setShowTimeframeDropdown] = useState(false);
+  const [showCustomDatePicker, setShowCustomDatePicker] = useState(false);
 
-  // Custom tooltip formatter
-  const formatTooltip = (value: number, name: string) => {
-    return [`₹${value.toFixed(2)}`, name];
+  const timeframeOptions: { value: TimeframeOption; label: string }[] = [
+    { value: '1Y', label: '1 Year' },
+    { value: '3Y', label: '3 Years' },
+    { value: '5Y', label: '5 Years' },
+    { value: 'custom', label: 'Custom' },
+  ];
+
+  const formatDateForInput = (date: Date) => {
+    return date.toISOString().split('T')[0];
   };
 
-  // Format axis labels
-  const formatYAxis = (value: number) => {
-    if (value >= 1000) {
-      return `${(value / 1000).toFixed(1)}K`;
+  const handleCustomStartDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newStartDate = new Date(e.target.value);
+    if (customEndDate && onCustomDateChange) {
+      onCustomDateChange(newStartDate, customEndDate);
     }
-    return value.toFixed(0);
+  };
+
+  const handleCustomEndDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newEndDate = new Date(e.target.value);
+    if (customStartDate && onCustomDateChange) {
+      onCustomDateChange(customStartDate, newEndDate);
+    }
+  };
+
+  const handleTimeframeSelect = (timeframe: TimeframeOption) => {
+    onTimeframeChange(timeframe);
+    setShowTimeframeDropdown(false);
+    if (timeframe === 'custom') {
+      setShowCustomDatePicker(true);
+    } else {
+      setShowCustomDatePicker(false);
+    }
+  };
+
+  // Custom tooltip formatter
+  const formatNormalizedTooltip = (value: number) => {
+    return `₹${value}`;
   };
 
   const formatDate = (dateStr: string) => {
@@ -61,11 +100,6 @@ const ComparisonChart: React.FC<ComparisonChartProps> = ({
       month: 'short', 
       day: 'numeric' 
     });
-  };
-
-  // Normalized tooltip formatter
-  const formatNormalizedTooltip = (value: number, name: string) => {
-    return `₹${value}`;
   };
 
   if (loading) {
@@ -99,13 +133,9 @@ const ComparisonChart: React.FC<ComparisonChartProps> = ({
   
   const calculateReturn = (start: number, end: number) => ((end - start) / start * 100);
   
-  const fundAReturn = viewMode === 'normalized' 
-    ? calculateReturn(firstDataPoint.normalizedNavA || firstDataPoint.navA, lastDataPoint.normalizedNavA || lastDataPoint.navA)
-    : calculateReturn(firstDataPoint.navA, lastDataPoint.navA);
+  const fundAReturn = calculateReturn(firstDataPoint.normalizedNavA || firstDataPoint.navA, lastDataPoint.normalizedNavA || lastDataPoint.navA);
     
-  const fundBReturn = viewMode === 'normalized' 
-    ? calculateReturn(firstDataPoint.normalizedNavB || firstDataPoint.navB, lastDataPoint.normalizedNavB || lastDataPoint.navB)
-    : calculateReturn(firstDataPoint.navB, lastDataPoint.navB);
+  const fundBReturn = calculateReturn(firstDataPoint.normalizedNavB || firstDataPoint.navB, lastDataPoint.normalizedNavB || lastDataPoint.navB);
 
   return (
     <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700 rounded-2xl p-6">
@@ -133,34 +163,38 @@ const ComparisonChart: React.FC<ComparisonChartProps> = ({
         
         {/* Controls */}
         <div className="flex flex-col sm:flex-row gap-3">
-          <div className="flex bg-gray-800 rounded-lg p-1">
+          {/* Timeframe Dropdown */}
+          <div className="relative">
             <button
-              onClick={() => setViewMode('normalized')}
-              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-                viewMode === 'normalized'
-                  ? 'bg-blue-600 text-white'
-                  : 'text-gray-400 hover:text-white'
-              }`}
+              onClick={() => setShowTimeframeDropdown(!showTimeframeDropdown)}
+              className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-lg bg-gray-800 text-gray-300 hover:text-white border border-gray-600 hover:border-gray-500 transition-colors"
             >
-              Normalized
+              <Calendar className="w-3 h-3" />
+              {timeframeOptions.find(opt => opt.value === selectedTimeframe)?.label || '1 Year'}
+              <ChevronDown className="w-3 h-3" />
             </button>
-            <button
-              onClick={() => setViewMode('absolute')}
-              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-                viewMode === 'absolute'
-                  ? 'bg-blue-600 text-white'
-                  : 'text-gray-400 hover:text-white'
-              }`}
-            >
-              Absolute
-            </button>
+            
+            {showTimeframeDropdown && (
+              <div className="absolute top-full mt-1 right-0 bg-gray-800 border border-gray-600 rounded-lg shadow-lg z-10 min-w-[120px]">
+                {timeframeOptions.map((option) => (
+                  <button
+                    key={option.value}
+                    onClick={() => handleTimeframeSelect(option.value)}
+                    className={`w-full text-left px-3 py-2 text-xs font-medium transition-colors first:rounded-t-lg last:rounded-b-lg ${
+                      selectedTimeframe === option.value
+                        ? 'bg-accent text-white'
+                        : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           
           <button
-            onClick={() => {
-              console.log('Benchmark button clicked, current state:', showBenchmarks);
-              setShowBenchmarks(!showBenchmarks);
-            }}
+            onClick={() => setShowBenchmarks(!showBenchmarks)}
             className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
               showBenchmarks
                 ? 'bg-gray-700 text-white border border-green-500'
@@ -171,6 +205,43 @@ const ComparisonChart: React.FC<ComparisonChartProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Custom Date Range Inputs */}
+      {showCustomDatePicker && selectedTimeframe === 'custom' && (
+        <div className="mb-6 p-4 bg-gray-800/50 rounded-lg border border-gray-600">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Start Date
+              </label>
+              <input
+                type="date"
+                value={customStartDate ? formatDateForInput(customStartDate) : ''}
+                onChange={handleCustomStartDateChange}
+                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                End Date
+              </label>
+              <input
+                type="date"
+                value={customEndDate ? formatDateForInput(customEndDate) : ''}
+                onChange={handleCustomEndDateChange}
+                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent text-sm"
+              />
+            </div>
+          </div>
+          <div className="mt-3 text-sm text-gray-400">
+            {customStartDate && customEndDate ? (
+              `Custom period: ${customStartDate.toLocaleDateString()} - ${customEndDate.toLocaleDateString()}`
+            ) : (
+              'Select custom date range above'
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Chart */}
       <div className="h-80">
@@ -188,7 +259,6 @@ const ComparisonChart: React.FC<ComparisonChartProps> = ({
               axisLine={false}
               tickLine={false}
               tick={{ fill: '#9CA3AF', fontSize: 12 }}
-              tickFormatter={viewMode === 'normalized' ? undefined : formatYAxis}
             />
             <Tooltip
               contentStyle={{
@@ -197,7 +267,7 @@ const ComparisonChart: React.FC<ComparisonChartProps> = ({
                 borderRadius: '8px',
                 color: '#F9FAFB'
               }}
-              formatter={viewMode === 'normalized' ? formatNormalizedTooltip : formatTooltip}
+              formatter={formatNormalizedTooltip}
               labelFormatter={(label) => `Date: ${new Date(label).toLocaleDateString('en-IN')}`}
             />
             <Legend />
@@ -205,7 +275,7 @@ const ComparisonChart: React.FC<ComparisonChartProps> = ({
             {/* Fund Lines */}
             <Line
               type="monotone"
-              dataKey={viewMode === 'normalized' ? 'normalizedNavA' : 'navA'}
+              dataKey="normalizedNavA"
               stroke="#3B82F6"
               strokeWidth={2}
               dot={false}
@@ -214,7 +284,7 @@ const ComparisonChart: React.FC<ComparisonChartProps> = ({
             />
             <Line
               type="monotone"
-              dataKey={viewMode === 'normalized' ? 'normalizedNavB' : 'navB'}
+              dataKey="normalizedNavB"
               stroke="#8B5CF6"
               strokeWidth={2}
               dot={false}
@@ -225,11 +295,9 @@ const ComparisonChart: React.FC<ComparisonChartProps> = ({
             {/* Benchmark Lines */}
             {showBenchmarks && (
               <>
-                {console.log('Rendering benchmark lines, showBenchmarks:', showBenchmarks)}
-                {console.log('Sample benchmark data:', data.slice(0, 2).map(d => ({ benchmarkA: d.benchmarkA, benchmarkB: d.benchmarkB })))}
                 <Line
                   type="monotone"
-                  dataKey={viewMode === 'normalized' ? 'normalizedBenchmarkA' : 'benchmarkA'}
+                  dataKey="normalizedBenchmarkA"
                   stroke="#10B981"
                   strokeWidth={3}
                   strokeDasharray="8 4"
@@ -239,7 +307,7 @@ const ComparisonChart: React.FC<ComparisonChartProps> = ({
                 />
                 <Line
                   type="monotone"
-                  dataKey={viewMode === 'normalized' ? 'normalizedBenchmarkB' : 'benchmarkB'}
+                  dataKey="normalizedBenchmarkB"
                   stroke="#F59E0B"
                   strokeWidth={3}
                   strokeDasharray="8 4"

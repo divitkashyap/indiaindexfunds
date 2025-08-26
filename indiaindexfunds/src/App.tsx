@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import './App.css'
 import ComparisonPage from './pages/ComparisonPage'
 import Navbar from './components/Navbar'
+import VideosPage from './pages/VideosPage'
 
 function App() {
   const [searchQuery, setSearchQuery] = useState('')
@@ -21,6 +22,7 @@ function App() {
             <Route path="/screener" element={<div className="p-8 text-center text-muted-foreground">Screener Page - Coming Soon</div>} />
             <Route path="/compare" element={<ComparisonPage />} />
             <Route path="/blog" element={<div className="p-8 text-center text-muted-foreground">Blog Page - Coming Soon</div>} />
+            <Route path="/videos" element={<VideosPage />} /> 
           </Routes>
         </main>
       </div>

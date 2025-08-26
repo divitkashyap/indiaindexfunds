@@ -20,6 +20,7 @@ const Navbar = ({ searchQuery, onSearchChange }: NavbarProps) => {
     { name: 'SCREENER', href: '/screener', active: location.pathname === '/screener' },
     { name: 'COMPARE', href: '/compare', active: location.pathname === '/compare' },
     { name: 'BLOG', href: '/blog', active: location.pathname === '/blog' },
+    { name: 'VIDEOS', href: '/videos', active: location.pathname === '/videos' },
   ];
 
   return (
