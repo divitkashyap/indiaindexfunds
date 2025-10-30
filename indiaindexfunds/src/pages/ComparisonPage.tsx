@@ -6,6 +6,7 @@ import InvestButton from '../components/Comparison/InvestButton';
 import type { TimeframeOption } from '../components/Comparison/ComparisonChart';
 import type { ChartDataPoint } from '../components/Comparison/ComparisonChart';
 import { mockData, type Fund as MockFund, type MetricsDaily } from '../data/mockData';
+import { fetchIndexFunds, amfiToFundRow, type BackendIndexFund, fetchNavByISIN } from '../api/funds';
 
 const ComparisonPage: React.FC = () => {
   const [selectedFunds, setSelectedFunds] = useState<{ fundA: MockFund | null; fundB: MockFund | null }>({
@@ -19,6 +20,27 @@ const ComparisonPage: React.FC = () => {
   const [metricsA, setMetricsA] = useState<MetricsDaily | null>(null);
   const [metricsB, setMetricsB] = useState<MetricsDaily | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [liveFunds, setLiveFunds] = useState<MockFund[] | null>(null);
+  const [useLiveData, setUseLiveData] = useState(true);
+
+  // Fetch live index funds list from backend (AMFI)
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const list: BackendIndexFund[] = await fetchIndexFunds();
+        const mapped = list.map(amfiToFundRow);
+        if (mounted) setLiveFunds(mapped);
+      } catch (e) {
+        console.error('Falling back to mock funds due to fetch error:', e);
+        if (mounted) {
+          setUseLiveData(false);
+          setLiveFunds(null);
+        }
+      }
+    })();
+    return () => { mounted = false; };
+  }, []);
 
   // Simulate data fetching
   useEffect(() => {
@@ -26,10 +48,42 @@ const ComparisonPage: React.FC = () => {
       setIsLoading(true);
       
       // Simulate API call delay
-      const timer = setTimeout(() => {
+  const timer = setTimeout(async () => {
         // Get NAV data for both funds
-        const navDataA = mockData.navData.filter(nav => nav.fund_id === selectedFunds.fundA!.id);
-        const navDataB = mockData.navData.filter(nav => nav.fund_id === selectedFunds.fundB!.id);
+        let navDataA = mockData.navData.filter(nav => nav.fund_id === selectedFunds.fundA!.id);
+        let navDataB = mockData.navData.filter(nav => nav.fund_id === selectedFunds.fundB!.id);
+
+        // If both have ISIN and backend available, try fetching real historical NAVs
+        // Note: We keep mock fallback if request fails
+        const tryFetchReal = async () => {
+          try {
+            const [a, b] = await Promise.all([
+              selectedFunds.fundA?.isin ? fetchNavByISIN(selectedFunds.fundA.isin) : Promise.resolve(null),
+              selectedFunds.fundB?.isin ? fetchNavByISIN(selectedFunds.fundB.isin) : Promise.resolve(null)
+            ]);
+            if (a && a.historical_nav?.length) {
+              const fundIdA = selectedFunds.fundA!.id;
+              navDataA = a.historical_nav.map(([date, nav], idx, arr) => {
+                const prev = idx > 0 ? arr[idx - 1][1] : nav;
+                const change = idx > 0 ? ((nav - prev) / prev) * 100 : 0;
+                return { id: `${fundIdA}-${date}`, fund_id: fundIdA, date, nav, change_percent: Number(change.toFixed(4)) };
+              });
+            }
+            if (b && b.historical_nav?.length) {
+              const fundIdB = selectedFunds.fundB!.id;
+              navDataB = b.historical_nav.map(([date, nav], idx, arr) => {
+                const prev = idx > 0 ? arr[idx - 1][1] : nav;
+                const change = idx > 0 ? ((nav - prev) / prev) * 100 : 0;
+                return { id: `${fundIdB}-${date}`, fund_id: fundIdB, date, nav, change_percent: Number(change.toFixed(4)) };
+              });
+            }
+          } catch (e) {
+            console.warn('Using mock NAV due to real NAV fetch error:', e);
+          }
+        };
+
+  // Fetch real NAVs if possible (non-blocking but awaited here)
+  await tryFetchReal();
         
         // Get benchmark data
         const benchmarkDataA = mockData.benchmarkData.filter(
@@ -143,11 +197,17 @@ const ComparisonPage: React.FC = () => {
           <p className="text-gray-300 text-lg">
             Compare performance and metrics of Indian index funds
           </p>
+          {useLiveData && liveFunds && (
+            <div className="text-xs text-green-400 mt-2">Live index fund list loaded from backend ({liveFunds.length} funds)</div>
+          )}
+          {!useLiveData && (
+            <div className="text-xs text-yellow-400 mt-2">Using mock fund list (backend unavailable)</div>
+          )}
         </div>
 
         {/* Fund Selector */}
         <FundSelector
-          funds={mockData.funds}
+          funds={liveFunds && useLiveData ? liveFunds : mockData.funds}
           categories={mockData.categories}
           onFundSelect={handleFundSelect}
           selectedFunds={selectedFunds}
@@ -168,6 +228,8 @@ const ComparisonPage: React.FC = () => {
               customStartDate={customStartDate}
               customEndDate={customEndDate}
               onCustomDateChange={handleCustomDateChange}
+              metricsA={metricsA}
+              metricsB={metricsB}
             />
           </div>
 
@@ -231,10 +293,10 @@ const ComparisonPage: React.FC = () => {
                     <span className="text-gray-400 text-xs">vs</span>
                     <span className="text-yellow-500 text-sm font-medium">{fundB.fund_house}</span>
                   </div>
-                  <div className="text-gray-300 text-xs mb-2">
+                  <div className="text-gray-100 text-xs mb-2">
                     {fundA.scheme_name} vs {fundB.scheme_name}
                   </div>
-                  <div className="text-gray-500 text-xs">
+                  <div className="text-gray-400 text-xs">
                     {comparison.comparison_count} comparisons • {(comparison.popularity_score * 100).toFixed(0)}% match
                   </div>
                 </button>

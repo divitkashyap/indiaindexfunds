@@ -253,7 +253,7 @@ const FundSelector: React.FC<FundSelectorProps> = ({ funds, categories, onFundSe
                           <div className="text-gray-400 text-xs">{fund.fund_house}</div>
                           <div className="flex items-center gap-2 mt-1">
                             <CategoryBadge categoryId={fund.category_id} />
-                            <span className="text-xs text-gray-500">ER: {fund.expense_ratio}%</span>
+                            <span className="text-xs text-gray-400">ER: {fund.expense_ratio}%</span>
                           </div>
                         </div>
                       </div>
@@ -384,7 +384,7 @@ const FundSelector: React.FC<FundSelectorProps> = ({ funds, categories, onFundSe
                           <div className="text-gray-400 text-xs">{fund.fund_house}</div>
                           <div className="flex items-center gap-2 mt-1">
                             <CategoryBadge categoryId={fund.category_id} />
-                            <span className="text-xs text-gray-500">ER: {fund.expense_ratio}%</span>
+                            <span className="text-xs text-gray-400">ER: {fund.expense_ratio}%</span>
                           </div>
                         </div>
                       </div>
@@ -412,11 +412,11 @@ const FundSelector: React.FC<FundSelectorProps> = ({ funds, categories, onFundSe
                   <div className="text-gray-400 text-xs mt-1">{selectedFunds.fundA.fund_house}</div>
                   <div className="flex items-center gap-2 mt-2">
                     <CategoryBadge categoryId={selectedFunds.fundA.category_id} />
-                    <span className="text-xs text-gray-500">AUM: ₹{selectedFunds.fundA.aum.toLocaleString('en-IN')} Cr</span>
+                    <span className="text-xs text-gray-400">AUM: ₹{selectedFunds.fundA.aum.toLocaleString('en-IN')} Cr</span>
                   </div>
                 </div>
               ) : (
-                <div className="text-gray-500 text-center py-4">Select Fund A</div>
+                <div className="text-gray-400 text-center py-4">Select Fund A</div>
               )}
             </div>
             
@@ -424,18 +424,18 @@ const FundSelector: React.FC<FundSelectorProps> = ({ funds, categories, onFundSe
               <div className="text-lg font-bold">VS</div>
             </div>
             
-            <div className="flex-1">
+            <div className="flex-1 text-right">
               {selectedFunds.fundB ? (
                 <div>
                   <div className="text-yellow-400 font-medium text-sm">{selectedFunds.fundB.scheme_name}</div>
                   <div className="text-gray-400 text-xs mt-1">{selectedFunds.fundB.fund_house}</div>
-                  <div className="flex items-center gap-2 mt-2">
+                  <div className="flex items-center justify-end gap-2 mt-2">
+                    <span className="text-xs text-gray-400">AUM: ₹{selectedFunds.fundB.aum.toLocaleString('en-IN')} Cr</span>
                     <CategoryBadge categoryId={selectedFunds.fundB.category_id} />
-                    <span className="text-xs text-gray-500">AUM: ₹{selectedFunds.fundB.aum.toLocaleString('en-IN')} Cr</span>
                   </div>
                 </div>
               ) : (
-                <div className="text-gray-500 text-center py-4">Select Fund B</div>
+                <div className="text-gray-400 text-center py-4">Select Fund B</div>
               )}
             </div>
           </div>

@@ -2,21 +2,22 @@ import React from 'react';
 import { TableProperties } from 'lucide-react';
 import type { Fund, MetricsDaily } from '../../data/mockData';
 
+interface MetricRow {
+  label: string;
+  valueA: string | number;
+  valueB: string | number;
+  formatAs: 'percentage' | 'currency' | 'number' | 'ratio';
+  higherIsBetter?: boolean;
+  description?: string;
+  isSection?: boolean; // New property for section headers
+}
+
 interface MetricsTableProps {
   fundA: Fund | null;
   fundB: Fund | null;
   metricsA: MetricsDaily | null;
   metricsB: MetricsDaily | null;
   loading?: boolean;
-}
-
-interface MetricRow {
-  label: string;
-  valueA: string | number;
-  valueB: string | number;
-  formatAs?: 'percentage' | 'currency' | 'number' | 'ratio';
-  higherIsBetter?: boolean;
-  description?: string;
 }
 
 const MetricsTable: React.FC<MetricsTableProps> = ({ 
@@ -82,7 +83,7 @@ const MetricsTable: React.FC<MetricsTableProps> = ({
 
     const className = isHigher 
       ? 'text-green-400 font-semibold' 
-      : 'text-gray-300';
+      : 'text-gray-100';
     return <span className={className}>{formatted}</span>;
   };
 
@@ -96,17 +97,25 @@ const MetricsTable: React.FC<MetricsTableProps> = ({
   };
 
   const metrics: MetricRow[] = [
-    // Basic Fund Info
+    // Cost & Basic Info Section
     {
-      label: 'Expense Ratio',
+      label: '💰 Cost & Basic Info',
+      valueA: '',
+      valueB: '',
+      formatAs: 'number',
+      isSection: true,
+      description: ''
+    },
+    {
+      label: '💰 Expense Ratio',
       valueA: fundA.expense_ratio,
       valueB: fundB.expense_ratio,
       formatAs: 'percentage',
       higherIsBetter: false,
-      description: 'Annual fee charged by fund house'
+      description: 'Annual fee charged by fund house (lower is better)'
     },
     {
-      label: 'AUM (Crores)',
+      label: '💼 AUM (Crores)',
       valueA: fundA.aum,
       valueB: fundB.aum,
       formatAs: 'currency',
@@ -114,7 +123,7 @@ const MetricsTable: React.FC<MetricsTableProps> = ({
       description: 'Assets Under Management'
     },
     {
-      label: 'Min Investment',
+      label: '🎯 Min Investment',
       valueA: fundA.min_investment,
       valueB: fundB.min_investment,
       formatAs: 'currency',
@@ -122,9 +131,59 @@ const MetricsTable: React.FC<MetricsTableProps> = ({
       description: 'Minimum investment amount'
     },
     
-    // Returns
+    // Risk Metrics Section
     {
-      label: '1 Day Return',
+      label: '⚠️ Risk Metrics',
+      valueA: '',
+      valueB: '',
+      formatAs: 'number',
+      isSection: true,
+      description: ''
+    },
+    {
+      label: '⚠️ Risk (Volatility 1Y)',
+      valueA: metricsA.volatility_1y,
+      valueB: metricsB.volatility_1y,
+      formatAs: 'percentage',
+      higherIsBetter: false,
+      description: 'Standard deviation of returns (lower is less risky)'
+    },
+    {
+      label: '📊 Sharpe Ratio',
+      valueA: metricsA.sharpe_ratio,
+      valueB: metricsB.sharpe_ratio,
+      formatAs: 'ratio',
+      higherIsBetter: true,
+      description: 'Risk-adjusted return measure (higher is better)'
+    },
+    {
+      label: '📉 Max Drawdown',
+      valueA: metricsA.max_drawdown,
+      valueB: metricsB.max_drawdown,
+      formatAs: 'percentage',
+      higherIsBetter: true,
+      description: 'Largest peak-to-trough decline (higher is better)'
+    },
+    {
+      label: '⚖️ Beta',
+      valueA: metricsA.beta,
+      valueB: metricsB.beta,
+      formatAs: 'ratio',
+      higherIsBetter: false,
+      description: 'Sensitivity to market movements (1.0 = market level)'
+    },
+    
+    // Returns Section
+    {
+      label: '📈 Returns Performance',
+      valueA: '',
+      valueB: '',
+      formatAs: 'number',
+      isSection: true,
+      description: ''
+    },
+    {
+      label: '📈 1 Day Return',
       valueA: metricsA.returns_1d,
       valueB: metricsB.returns_1d,
       formatAs: 'percentage',
@@ -132,7 +191,7 @@ const MetricsTable: React.FC<MetricsTableProps> = ({
       description: 'Return over last 1 day'
     },
     {
-      label: '1 Week Return',
+      label: '📈 1 Week Return',
       valueA: metricsA.returns_1w,
       valueB: metricsB.returns_1w,
       formatAs: 'percentage',
@@ -140,7 +199,7 @@ const MetricsTable: React.FC<MetricsTableProps> = ({
       description: 'Return over last 1 week'
     },
     {
-      label: '1 Month Return',
+      label: '📈 1 Month Return',
       valueA: metricsA.returns_1m,
       valueB: metricsB.returns_1m,
       formatAs: 'percentage',
@@ -148,7 +207,7 @@ const MetricsTable: React.FC<MetricsTableProps> = ({
       description: 'Return over last 1 month'
     },
     {
-      label: '3 Month Return',
+      label: '📈 3 Month Return',
       valueA: metricsA.returns_3m,
       valueB: metricsB.returns_3m,
       formatAs: 'percentage',
@@ -156,7 +215,7 @@ const MetricsTable: React.FC<MetricsTableProps> = ({
       description: 'Return over last 3 months'
     },
     {
-      label: '1 Year Return',
+      label: '📈 1 Year Return',
       valueA: metricsA.returns_1y,
       valueB: metricsB.returns_1y,
       formatAs: 'percentage',
@@ -164,7 +223,7 @@ const MetricsTable: React.FC<MetricsTableProps> = ({
       description: 'Return over last 1 year'
     },
     {
-      label: '3 Year Return (Annualized)',
+      label: '📈 3 Year Return (Annualized)',
       valueA: metricsA.returns_3y,
       valueB: metricsB.returns_3y,
       formatAs: 'percentage',
@@ -172,46 +231,22 @@ const MetricsTable: React.FC<MetricsTableProps> = ({
       description: 'Annualized return over 3 years'
     },
     
-    // Risk Metrics
+    // Advanced Metrics
     {
-      label: 'Volatility (1Y)',
-      valueA: metricsA.volatility_1y,
-      valueB: metricsB.volatility_1y,
-      formatAs: 'percentage',
-      higherIsBetter: false,
-      description: 'Standard deviation of returns'
+      label: '🔬 Advanced Metrics',
+      valueA: '',
+      valueB: '',
+      formatAs: 'number',
+      isSection: true,
+      description: ''
     },
     {
-      label: 'Sharpe Ratio',
-      valueA: metricsA.sharpe_ratio,
-      valueB: metricsB.sharpe_ratio,
-      formatAs: 'ratio',
-      higherIsBetter: true,
-      description: 'Risk-adjusted return measure'
-    },
-    {
-      label: 'Alpha',
+      label: '🎯 Alpha',
       valueA: metricsA.alpha,
       valueB: metricsB.alpha,
       formatAs: 'percentage',
       higherIsBetter: true,
       description: 'Excess return vs benchmark'
-    },
-    {
-      label: 'Beta',
-      valueA: metricsA.beta,
-      valueB: metricsB.beta,
-      formatAs: 'ratio',
-      higherIsBetter: false,
-      description: 'Sensitivity to market movements'
-    },
-    {
-      label: 'Max Drawdown',
-      valueA: metricsA.max_drawdown,
-      valueB: metricsB.max_drawdown,
-      formatAs: 'percentage',
-      higherIsBetter: true,
-      description: 'Largest peak-to-trough decline'
     }
   ];
 
@@ -249,6 +284,22 @@ const MetricsTable: React.FC<MetricsTableProps> = ({
       {/* Table Rows */}
       <div className="space-y-2 max-h-96 overflow-y-auto">
         {metrics.map((metric, index) => {
+          // Handle section headers
+          if (metric.isSection) {
+            return (
+              <div 
+                key={index} 
+                className="grid grid-cols-3 gap-4 py-3 mt-4 first:mt-0"
+              >
+                <div className="col-span-3 text-center">
+                  <div className="text-accent font-semibold text-sm border-b border-accent/30 pb-1">
+                    {metric.label}
+                  </div>
+                </div>
+              </div>
+            );
+          }
+
           const valueA = typeof metric.valueA === 'string' ? parseFloat(metric.valueA) : metric.valueA;
           const valueB = typeof metric.valueB === 'string' ? parseFloat(metric.valueB) : metric.valueB;
           const betterValue = getBetterValue(valueA, valueB, metric.higherIsBetter ?? true);
@@ -259,10 +310,10 @@ const MetricsTable: React.FC<MetricsTableProps> = ({
               className="grid grid-cols-3 gap-4 py-2 hover:bg-gray-800/30 rounded-lg px-2 group"
               title={metric.description}
             >
-              <div className="text-gray-300 font-medium text-sm cursor-help">
+              <div className="text-gray-200 font-medium text-sm cursor-help">
                 {metric.label}
                 {metric.description && (
-                  <div className="hidden group-hover:block absolute z-10 bg-gray-900 text-xs text-gray-300 p-2 rounded shadow-lg mt-1 max-w-xs">
+                  <div className="hidden group-hover:block absolute z-10 bg-gray-900 text-xs text-gray-200 p-2 rounded shadow-lg mt-1 max-w-xs">
                     {metric.description}
                   </div>
                 )}
@@ -291,7 +342,7 @@ const MetricsTable: React.FC<MetricsTableProps> = ({
         <div className="text-xs text-gray-400 text-center">
           <span className="text-green-400">Green values</span> indicate better performance
         </div>
-        <div className="text-xs text-gray-500 text-center">
+        <div className="text-xs text-gray-400 text-center">
           Hover over metrics for descriptions
         </div>
       </div>

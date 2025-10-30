@@ -10,7 +10,7 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { BarChart3, ChevronDown, Calendar } from 'lucide-react';
-import type { Fund, BenchmarkIndex } from '../../data/mockData';
+import type { Fund, BenchmarkIndex, MetricsDaily } from '../../data/mockData';
 
 export type TimeframeOption = '1Y' | '3Y' | '5Y' | 'custom';
 
@@ -37,22 +37,28 @@ interface ComparisonChartProps {
   customStartDate?: Date;
   customEndDate?: Date;
   onCustomDateChange?: (startDate: Date, endDate: Date) => void;
+  metricsA?: MetricsDaily | null;
+  metricsB?: MetricsDaily | null;
 }
 
 const ComparisonChart: React.FC<ComparisonChartProps> = ({
   data,
   fundA,
   fundB,
+  benchmarkData,
   loading = false,
   selectedTimeframe,
   onTimeframeChange,
   customStartDate,
   customEndDate,
   onCustomDateChange,
+  metricsA,
+  metricsB,
 }) => {
   const [showBenchmarks, setShowBenchmarks] = useState(true);
   const [showTimeframeDropdown, setShowTimeframeDropdown] = useState(false);
   const [showCustomDatePicker, setShowCustomDatePicker] = useState(false);
+  const [useLogScale, setUseLogScale] = useState(false);
 
   const timeframeOptions: { value: TimeframeOption; label: string }[] = [
     { value: '1Y', label: '1 Year' },
@@ -90,16 +96,20 @@ const ComparisonChart: React.FC<ComparisonChartProps> = ({
   };
 
   // Custom tooltip formatter
-  const formatNormalizedTooltip = (value: number) => {
-    return `₹${value}`;
+  const formatNormalizedTooltip = (value: number, name: string) => {
+    if (typeof value !== 'number') return ['--', name];
+    return [`₹${value.toFixed(2)}`, name];
   };
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
-    return date.toLocaleDateString('en-IN', { 
-      month: 'short', 
-      day: 'numeric' 
-    });
+    const month = date.toLocaleDateString('en-IN', { month: 'short' });
+    const day = date.getDate();
+    // For very compact display, show just month for the 1st of each month, otherwise show day
+    if (day === 1) {
+      return month;
+    }
+    return `${day}`;
   };
 
   if (loading) {
@@ -146,14 +156,14 @@ const ComparisonChart: React.FC<ComparisonChartProps> = ({
           <div className="flex flex-wrap gap-4 text-sm">
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-              <span className="text-gray-300">{fundA.scheme_name}</span>
+              <span className="text-gray-100">{fundA.scheme_name}</span>
               <span className={`font-medium ${fundAReturn >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                 {fundAReturn >= 0 ? '+' : ''}{fundAReturn.toFixed(2)}%
               </span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
-              <span className="text-gray-300">{fundB.scheme_name}</span>
+              <span className="text-gray-100">{fundB.scheme_name}</span>
               <span className={`font-medium ${fundBReturn >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                 {fundBReturn >= 0 ? '+' : ''}{fundBReturn.toFixed(2)}%
               </span>
@@ -195,13 +205,24 @@ const ComparisonChart: React.FC<ComparisonChartProps> = ({
           
           <button
             onClick={() => setShowBenchmarks(!showBenchmarks)}
-            className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+            className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all duration-200 ${
               showBenchmarks
-                ? 'bg-gray-700 text-white border border-green-500'
-                : 'bg-gray-800 text-gray-400 hover:text-white border border-gray-600'
+                ? 'bg-green-600 hover:bg-green-700 text-white border border-green-500'
+                : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white border border-gray-600'
             }`}
           >
-            {showBenchmarks ? '✓ Benchmark' : 'Benchmark'}
+            Benchmark
+          </button>
+          
+          <button
+            onClick={() => setUseLogScale(!useLogScale)}
+            className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all duration-200 ${
+              useLogScale
+                ? 'bg-orange-600 hover:bg-orange-700 text-white border border-orange-500'
+                : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white border border-gray-600'
+            }`}
+          >
+            Log Scale
           </button>
         </div>
       </div>
@@ -252,23 +273,31 @@ const ComparisonChart: React.FC<ComparisonChartProps> = ({
               dataKey="date" 
               axisLine={false}
               tickLine={false}
-              tick={{ fill: '#9CA3AF', fontSize: 12 }}
+              tick={{ fill: '#9CA3AF', fontSize: 10 }}
               tickFormatter={formatDate}
+              interval="preserveStartEnd"
+              minTickGap={30}
             />
             <YAxis 
               axisLine={false}
               tickLine={false}
               tick={{ fill: '#9CA3AF', fontSize: 12 }}
+              scale={useLogScale ? 'log' : 'linear'}
+              domain={useLogScale ? ['auto', 'auto'] : undefined}
             />
             <Tooltip
               contentStyle={{
                 backgroundColor: '#1F2937',
                 border: '1px solid #374151',
                 borderRadius: '8px',
-                color: '#F9FAFB'
+                color: '#F9FAFB',
+                fontSize: '12px',
+                padding: '8px 12px',
+                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
               }}
               formatter={formatNormalizedTooltip}
-              labelFormatter={(label) => `Date: ${new Date(label).toLocaleDateString('en-IN')}`}
+              labelFormatter={(label) => `${new Date(label).toLocaleDateString('en-IN')}`}
+              cursor={{ stroke: '#6B7280', strokeWidth: 1, strokeDasharray: '3 3' }}
             />
             <Legend />
             
@@ -322,7 +351,7 @@ const ComparisonChart: React.FC<ComparisonChartProps> = ({
       </div>
 
       {/* Summary Stats */}
-      <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
+      <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-4 text-center">
         <div className="bg-gray-800/50 rounded-lg p-3">
           <div className="text-gray-400 text-xs mb-1">Best Performer</div>
           <div className="text-white font-medium text-sm">
@@ -335,6 +364,31 @@ const ComparisonChart: React.FC<ComparisonChartProps> = ({
             {Math.abs(fundAReturn - fundBReturn).toFixed(2)}%
           </div>
         </div>
+        
+        {/* Risk Comparison */}
+        <div className="bg-gray-800/50 rounded-lg p-3">
+          <div className="text-gray-400 text-xs mb-1">Risk (Volatility)</div>
+          <div className="text-white font-medium text-xs space-y-1">
+            {metricsA && metricsB ? (
+              <>
+                <div className="text-blue-400">{metricsA.volatility_1y.toFixed(2)}%</div>
+                <div className="text-purple-400">{metricsB.volatility_1y.toFixed(2)}%</div>
+              </>
+            ) : (
+              <div className="text-gray-400">--</div>
+            )}
+          </div>
+        </div>
+        
+        {/* Cost Comparison */}
+        <div className="bg-gray-800/50 rounded-lg p-3">
+          <div className="text-gray-400 text-xs mb-1">Cost (Expense Ratio)</div>
+          <div className="text-white font-medium text-xs space-y-1">
+            <div className="text-blue-400">{fundA.expense_ratio.toFixed(2)}%</div>
+            <div className="text-purple-400">{fundB.expense_ratio.toFixed(2)}%</div>
+          </div>
+        </div>
+        
         <div className="bg-gray-800/50 rounded-lg p-3">
           <div className="text-gray-400 text-xs mb-1">Data Points</div>
           <div className="text-white font-medium text-sm">{data.length}</div>
