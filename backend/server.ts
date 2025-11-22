@@ -3,6 +3,9 @@ import { Pool } from 'pg';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import fetch from 'node-fetch';
+import axios from 'axios';
+import fs from 'fs';
+import path from 'path';
 
 // Load environment variables
 dotenv.config();
@@ -73,11 +76,11 @@ type AmfiRow = {
 
 const AMFI_NAV_ALL_URL = process.env.AMFI_NAV_URL || 'https://www.amfiindia.com/spages/NAVAll.txt';
 const AMFI_HISTORY_URL = 'https://portal.amfiindia.com/DownloadNAVHistoryReport_Po.aspx';
-const AMFI_FETCH_TIMEOUT_MS = 10000; // 10 seconds
+const AMFI_FETCH_TIMEOUT_MS = 30000; // 30 seconds, AMFI can be slow
 
 // In-memory cache
 let amfiAllCache: { fetchedAt: number; rows: AmfiRow[] } | null = null;
-const AMFI_CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
+const AMFI_CACHE_TTL_MS = 12 * 60 * 60 * 1000; // 12 hours, NAV is daily
 
 function isIndexLikeName(name: string): boolean {
   const n = name.toLowerCase();
@@ -99,6 +102,23 @@ async function fetchAmfiAll(): Promise<AmfiRow[]> {
     return amfiAllCache.rows;
   }
 
+  // Prefer local NAVAll.txt if available (manual download support)
+  try {
+    const localNavPath = path.join(__dirname, 'data', 'NAVAll.txt');
+    if (fs.existsSync(localNavPath)) {
+      const text = fs.readFileSync(localNavPath, 'utf8');
+      if (text && text.length > 1000) {
+        console.log(`Loading AMFI NAVAll from local file: ${localNavPath}`);
+        const rows = parseAmfiNavAll(text);
+        amfiAllCache = { fetchedAt: Date.now(), rows };
+        console.log(`✅ Loaded AMFI list from local NAVAll.txt: ${rows.length} rows`);
+        return rows;
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to read local NAVAll.txt, falling back to HTTP:', e);
+  }
+
   // Try multiple URLs/protocols with retries and backoff
   const urlsToTry = [
     AMFI_NAV_ALL_URL,
@@ -107,43 +127,51 @@ async function fetchAmfiAll(): Promise<AmfiRow[]> {
   ];
 
   const maxAttempts = 3;
-  const baseDelayMs = 1500;
+  const baseDelayMs = 2000; // 2s, exponential backoff
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     for (const url of urlsToTry) {
-      const controller = new AbortController();
-      const to = setTimeout(() => controller.abort(), AMFI_FETCH_TIMEOUT_MS);
+      const timeoutIdMsg = `after ${AMFI_FETCH_TIMEOUT_MS}ms`;
       try {
         console.log(`Fetching AMFI NAVAll.txt (attempt ${attempt}/${maxAttempts}) from ${url}`);
-        const res = await fetch(url, {
+        const res = await axios.get<string>(url, {
+          timeout: AMFI_FETCH_TIMEOUT_MS,
           headers: {
-            'User-Agent': 'indiaindexfunds/1.0 (+https://github.com/divitkashyap/indiaindexfunds)'
+            'User-Agent': 'indiaindexfunds/1.0 (+https://github.com/divitkashyap/indiaindexfunds)',
+            Accept: 'text/plain, */*',
           },
-          signal: controller.signal
+          responseType: 'text',
+          transitional: { clarifyTimeoutError: true },
         });
-        if (!res.ok) {
-          console.warn(`AMFI fetch non-OK status ${res.status} from ${url}`);
-          continue;
-        }
-        const text = await res.text();
+
+        const text = res.data;
         if (!text || text.length < 1000) {
-          console.warn(`AMFI fetch returned too small payload (${text.length} bytes) from ${url}`);
+          console.warn(`AMFI fetch returned too small payload (${text?.length ?? 0} bytes) from ${url}`);
           continue;
         }
+
         const rows = parseAmfiNavAll(text);
         amfiAllCache = { fetchedAt: Date.now(), rows };
-        console.log(`Fetched AMFI list: ${rows.length} rows`);
+        console.log(`✅ Fetched AMFI list: ${rows.length} rows from ${url}`);
         return rows;
-      } catch (err) {
-        const reason = err instanceof Error ? err.message : String(err);
-        console.warn(`AMFI fetch error from ${url}: ${reason}`);
-      } finally {
-        clearTimeout(to);
+      } catch (err: any) {
+        if (axios.isAxiosError(err)) {
+          if (err.code === 'ECONNABORTED') {
+            console.warn(`AMFI fetch timeout from ${url} ${timeoutIdMsg}`);
+          } else {
+            console.warn(`AMFI axios error from ${url}:`, err.message);
+          }
+        } else {
+          const reason = err instanceof Error ? err.message : String(err);
+          console.warn(`AMFI fetch error from ${url}: ${reason}`);
+        }
       }
     }
-    // Backoff before next attempt
-    const waitMs = baseDelayMs * attempt;
-    await new Promise(r => setTimeout(r, waitMs));
+    if (attempt < maxAttempts) {
+      const waitMs = baseDelayMs * 2 ** (attempt - 1); // 2s, 4s
+      console.log(`Waiting ${waitMs}ms before retry...`);
+      await new Promise(r => setTimeout(r, waitMs));
+    }
   }
 
   throw new Error('All attempts to fetch AMFI NAVAll.txt failed');
@@ -152,41 +180,109 @@ async function fetchAmfiAll(): Promise<AmfiRow[]> {
 function parseAmfiNavAll(text: string): AmfiRow[] {
   // AMFI text is semicolon delimited; header lines at top; blank lines present
   const lines = text.split(/\r?\n/).filter(l => l.trim().length > 0);
-  // Find header index (line that contains Scheme Code;Scheme Name;...)
-  const headerIndex = lines.findIndex(l => /Scheme Code;Scheme Name/i.test(l));
+
+  // Find header index (line that contains Scheme Code;...)
+  const headerIndex = lines.findIndex(l => /Scheme Code;/i.test(l));
+
+  if (headerIndex >= 0) {
+    const header = lines[headerIndex];
+    console.log('📋 AMFI Header found:', header);
+    const headerParts = header.split(';').map(h => h.trim().toLowerCase());
+    console.log('📋 Column indices:', headerParts.map((h, i) => `${i}: ${h}`).join(', '));
+  }
+
   const dataLines = headerIndex >= 0 ? lines.slice(headerIndex + 1) : lines;
 
   const rows: AmfiRow[] = [];
+  let skippedCount = 0;
+
   for (const line of dataLines) {
     const parts = line.split(';');
-    if (parts.length < 6) continue;
-    // Expected minimal columns: Scheme Code;Scheme Name;ISIN Div Payout/ Growth;ISIN Div Reinvestment;NAV;Date;... (may have more)
-    const [schemeCode, schemeName, isinDivGrowth, isinDivReinv, navStr, date, rta, rtaCode, amc] = parts;
-    const nav = parseFloat(navStr);
-    if (Number.isNaN(nav)) continue;
+    if (parts.length < 6) {
+      skippedCount++;
+      continue;
+    }
+
+    // Correct AMFI format (Scheme Code;ISIN1;ISIN2;Scheme Name;NAV;Date;...)
+    const schemeCode = parts[0]?.trim();
+    const isinDivGrowth = parts[1]?.trim();
+    const isinDivReinv = parts[2]?.trim();
+    const schemeName = parts[3]?.trim();
+    const navStr = parts[4]?.trim();
+    const date = parts[5]?.trim();
+
+    const nav = parseFloat(navStr || '');
+    if (Number.isNaN(nav)) {
+      skippedCount++;
+      continue;
+    }
+
+    // Skip rows where scheme name is missing or looks like an ISIN
+    if (!schemeName || /^IN[A-Z0-9]{10}$/i.test(schemeName)) {
+      skippedCount++;
+      continue;
+    }
+
+    // Rough AMC extraction from scheme name
+    let amc: string | undefined;
+    const amcMatch = schemeName.match(/^([A-Z\s&]+(?:MUTUAL FUND|MF|ASSET MANAGEMENT))/i);
+    if (amcMatch) {
+      amc = amcMatch[1].trim();
+    } else {
+      const words = schemeName.split(/\s+/);
+      if (words.length >= 2) {
+        amc = words.slice(0, 2).join(' ');
+      }
+    }
+
     rows.push({
-      schemeCode: schemeCode?.trim(),
-      schemeName: schemeName?.trim(),
-      isinDivGrowth: isinDivGrowth?.trim() || undefined,
-      isinDivReinv: isinDivReinv?.trim() || undefined,
+      schemeCode,
+      schemeName,
+      isinDivGrowth: isinDivGrowth || undefined,
+      isinDivReinv: isinDivReinv || undefined,
       nav,
-      date: date?.trim(),
-      rta: rta?.trim(),
-      rtaCode: rtaCode?.trim(),
-      amc: amc?.trim(),
+      date: date || '',
+      amc,
     });
   }
+
+  console.log(`✅ Parsed ${rows.length} valid AMFI rows (skipped ${skippedCount})`);
   return rows;
 }
 
-// GET: List index-like funds from AMFI daily dump
+// Helper to read cached index funds JSON generated by daily-fund-sync
+function readIndexFundsCache() {
+  try {
+    const cachePath = path.join(__dirname, 'data', 'index-funds-cache.json');
+    if (!fs.existsSync(cachePath)) return null;
+    const raw = fs.readFileSync(cachePath, 'utf8');
+    const parsed = JSON.parse(raw);
+    return parsed;
+  } catch (err) {
+    console.warn('Failed to read index-funds cache:', err);
+    return null;
+  }
+}
+
+// GET: List index-like funds, preferring JSON cache then AMFI live fetch
 app.get('/api/index-funds', async (req: Request, res: Response) => {
   try {
+    // 1) Try JSON cache written by daily-fund-sync
+    const cache = readIndexFundsCache();
+    if (cache && Array.isArray(cache.funds) && typeof cache.count === 'number') {
+      return res.json({
+        count: cache.count,
+        funds: cache.funds,
+        source: 'cache',
+        generatedAt: cache.generatedAt,
+      });
+    }
+
+    // 2) Fallback to live AMFI fetch if cache missing or invalid
     const all = await fetchAmfiAll();
     const uniqueByIsin = new Map<string, AmfiRow>();
     for (const row of all) {
       if (!row.schemeName) continue;
-      if (!isIndexLikeName(row.schemeName)) continue;
       const key = row.isinDivGrowth || row.isinDivReinv || `${row.schemeCode}:${row.schemeName}`;
       if (!uniqueByIsin.has(key)) uniqueByIsin.set(key, row);
     }
@@ -200,7 +296,7 @@ app.get('/api/index-funds', async (req: Request, res: Response) => {
       amc: r.amc || null,
     }));
 
-    res.json({ count: list.length, funds: list });
+    res.json({ count: list.length, funds: list, source: 'amfi-live' });
   } catch (err) {
     console.error('Error fetching index funds from AMFI:', err);
     // Fallback: return a minimal verified list so UI doesn't block

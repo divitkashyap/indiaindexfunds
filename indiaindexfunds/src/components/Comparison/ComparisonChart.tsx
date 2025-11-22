@@ -58,7 +58,7 @@ const ComparisonChart: React.FC<ComparisonChartProps> = ({
   const [showBenchmarks, setShowBenchmarks] = useState(true);
   const [showTimeframeDropdown, setShowTimeframeDropdown] = useState(false);
   const [showCustomDatePicker, setShowCustomDatePicker] = useState(false);
-  const [useLogScale, setUseLogScale] = useState(false);
+  const [useLogScale, setUseLogScale] = useState(true);
 
   const timeframeOptions: { value: TimeframeOption; label: string }[] = [
     { value: '1Y', label: '1 Year' },

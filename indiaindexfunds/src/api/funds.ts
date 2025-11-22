@@ -18,7 +18,7 @@ export interface CaptnemoNavResponse {
   historical_nav: [string, number][];
 }
 
-const API_BASE = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+const API_BASE = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5001';
 
 export async function fetchIndexFunds(): Promise<BackendIndexFund[]> {
   const res = await fetch(`${API_BASE}/api/index-funds`);

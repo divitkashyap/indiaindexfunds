@@ -5,8 +5,9 @@ import MetricsTable from '../components/Comparison/MetricsTable';
 import InvestButton from '../components/Comparison/InvestButton';
 import type { TimeframeOption } from '../components/Comparison/ComparisonChart';
 import type { ChartDataPoint } from '../components/Comparison/ComparisonChart';
-import { mockData, type Fund as MockFund, type MetricsDaily } from '../data/mockData';
+import { mockData, type Fund as MockFund } from '../data/mockData';
 import { fetchIndexFunds, amfiToFundRow, type BackendIndexFund, fetchNavByISIN } from '../api/funds';
+import { calculateMetricsFromNAV, isRealNAVData } from '../utils/metricsCalculator';
 
 const ComparisonPage: React.FC = () => {
   const [selectedFunds, setSelectedFunds] = useState<{ fundA: MockFund | null; fundB: MockFund | null }>({
@@ -17,8 +18,8 @@ const ComparisonPage: React.FC = () => {
   const [customStartDate, setCustomStartDate] = useState<Date>();
   const [customEndDate, setCustomEndDate] = useState<Date>();
   const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
-  const [metricsA, setMetricsA] = useState<MetricsDaily | null>(null);
-  const [metricsB, setMetricsB] = useState<MetricsDaily | null>(null);
+  const [metricsA, setMetricsA] = useState<any | null>(null);
+  const [metricsB, setMetricsB] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [liveFunds, setLiveFunds] = useState<MockFund[] | null>(null);
   const [useLiveData, setUseLiveData] = useState(true);
@@ -30,7 +31,15 @@ const ComparisonPage: React.FC = () => {
       try {
         const list: BackendIndexFund[] = await fetchIndexFunds();
         const mapped = list.map(amfiToFundRow);
-        if (mounted) setLiveFunds(mapped);
+
+        // Prefer index-like schemes for the UI (Nifty/Sensex/Index/ETF)
+        const indexLike = mapped.filter(f =>
+          /index|nifty|sensex|etf/i.test(f.scheme_name)
+        );
+
+        if (mounted) {
+          setLiveFunds(indexLike.length ? indexLike : mapped);
+        }
       } catch (e) {
         console.error('Falling back to mock funds due to fetch error:', e);
         if (mounted) {
@@ -49,7 +58,7 @@ const ComparisonPage: React.FC = () => {
       
       // Simulate API call delay
   const timer = setTimeout(async () => {
-        // Get NAV data for both funds
+        // Get NAV data for both funds (start with mock, then try real)
         let navDataA = mockData.navData.filter(nav => nav.fund_id === selectedFunds.fundA!.id);
         let navDataB = mockData.navData.filter(nav => nav.fund_id === selectedFunds.fundB!.id);
 
@@ -157,13 +166,41 @@ const ComparisonPage: React.FC = () => {
           });
         }
 
-        // Get metrics data
-        const fundAMetrics = mockData.metrics.find(metric => metric.fund_id === selectedFunds.fundA!.id);
-        const fundBMetrics = mockData.metrics.find(metric => metric.fund_id === selectedFunds.fundB!.id);
+        if (chartPoints.length > 0) {
+          console.log('Sample chart point (for benchmarks):', chartPoints[0]);
+        }
+
+        // Calculate real-time metrics from NAV data if we have enough points
+        if (chartPoints.length > 0) {
+          const navSeriesA = navDataA.map(d => ({ date: d.date, nav: d.nav }));
+          const navSeriesB = navDataB.map(d => ({ date: d.date, nav: d.nav }));
+
+          const metricsAReal = calculateMetricsFromNAV(
+            selectedFunds.fundA!.isin || selectedFunds.fundA!.id,
+            selectedFunds.fundA!.scheme_name,
+            navSeriesA
+          );
+          const metricsBReal = calculateMetricsFromNAV(
+            selectedFunds.fundB!.isin || selectedFunds.fundB!.id,
+            selectedFunds.fundB!.scheme_name,
+            navSeriesB
+          );
+
+          console.log('Fund A NAV data points:', navSeriesA.length);
+          console.log('Fund B NAV data points:', navSeriesB.length);
+          console.log('Latest NAV date A:', navSeriesA[navSeriesA.length - 1]?.date);
+          console.log('Latest NAV date B:', navSeriesB[navSeriesB.length - 1]?.date);
+          console.log('Is real data A:', isRealNAVData(navSeriesA));
+          console.log('Is real data B:', isRealNAVData(navSeriesB));
+
+          setMetricsA(metricsAReal);
+          setMetricsB(metricsBReal);
+        } else {
+          setMetricsA(null);
+          setMetricsB(null);
+        }
 
         setChartData(chartPoints);
-        setMetricsA(fundAMetrics || null);
-        setMetricsB(fundBMetrics || null);
         setIsLoading(false);
       }, 1000);
 
@@ -187,6 +224,29 @@ const ComparisonPage: React.FC = () => {
     setCustomStartDate(startDate);
     setCustomEndDate(endDate);
   };
+
+  const summaryText = React.useMemo(() => {
+    if (!selectedFunds.fundA || !selectedFunds.fundB || !metricsA || !metricsB) return '';
+
+    const label =
+      selectedTimeframe === '1Y'
+        ? 'over the last 1 year'
+        : selectedTimeframe === '3Y'
+        ? 'over the last 3 years'
+        : selectedTimeframe === '5Y'
+        ? 'over the last 5 years'
+        : 'over the selected period';
+
+    const returnA = (metricsA as any).total_return_1y ?? (metricsA as any).returns_1y ?? 0;
+    const returnB = (metricsB as any).total_return_1y ?? (metricsB as any).returns_1y ?? 0;
+
+    if (Math.abs(returnA - returnB) < 0.1) {
+      return `Both funds have delivered very similar returns ${label}.`;
+    }
+
+    const betterFund = returnA > returnB ? selectedFunds.fundA.scheme_name : selectedFunds.fundB.scheme_name;
+    return `${betterFund} has had slightly stronger returns ${label}, based on price performance data. This is informational only and not an investment recommendation.`;
+  }, [selectedFunds, metricsA, metricsB, selectedTimeframe]);
 
   return (
     <div className="w-full p-4 pt-8">
@@ -213,9 +273,8 @@ const ComparisonPage: React.FC = () => {
           selectedFunds={selectedFunds}
         />
 
-        {/* Charts and Tables */}
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-          {/* Chart - Takes 2 columns on XL screens */}
+        {/* Chart + Summary row */}
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-6 items-stretch">
           <div className="xl:col-span-2">
             <ComparisonChart
               data={chartData}
@@ -232,17 +291,37 @@ const ComparisonPage: React.FC = () => {
               metricsB={metricsB}
             />
           </div>
-
-          {/* Metrics Table - Takes 1 column on XL screens */}
-          <div className="xl:col-span-1">
-            <MetricsTable
-              fundA={selectedFunds.fundA}
-              fundB={selectedFunds.fundB}
-              metricsA={metricsA}
-              metricsB={metricsB}
-              loading={isLoading}
-            />
+          <div className="bg-glass backdrop-blur-xs rounded-2xl shadow-lg p-6 text-sm text-gray-200 flex flex-col justify-between border border-yellow-500/50 hover:border-yellow-300/70 hover:shadow-[0_0_30px_rgba(250,204,21,0.35)] transition-all duration-200">
+            <div>
+              <h3 className="text-lg font-semibold text-white mb-3 tracking-wide flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                Performance Snapshot
+              </h3>
+              {summaryText ? (
+                <p className="text-gray-100 leading-relaxed text-[15px]">
+                  {summaryText}
+                </p>
+              ) : (
+                <p className="text-gray-500 text-[15px]">
+                  Select two funds and a timeframe to see a quick snapshot of how they have performed relative to each other.
+                </p>
+              )}
+            </div>
+            <p className="mt-4 text-[11px] text-gray-500">
+              This summary is based purely on historical price data and is not a recommendation or advice.
+            </p>
           </div>
+        </div>
+
+        {/* Metrics table full-width below */}
+        <div className="mb-6">
+          <MetricsTable
+            fundA={selectedFunds.fundA}
+            fundB={selectedFunds.fundB}
+            metricsA={metricsA}
+            metricsB={metricsB}
+            loading={isLoading}
+          />
         </div>
 
         {/* Investment Buttons */}
